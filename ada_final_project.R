@@ -2,6 +2,7 @@ library(gdata)###reading in xls
 library(WriteXLS)### write xlslibrary(gdata)###reading in xls
 library(dplyr)
 b1 <- read.xls("7.17.18 COPY.xls")
+###creating new columns with simpler name
 b1$state <- b1$In.what.US.State..Canadian.Province..or.Foreign.Country.do.you.permanently.reside.
 b1$fir_mon <- b1$Have.you.ever.visited.Montana.before.
 b1$have <- b1$How.many.nights.has.your.group.already.spent.in.Montana.since.you.most.recently.entered.the.state.
@@ -9,7 +10,7 @@ b1$will <- b1$How.many.additional.nights.is.your.group.planning.to.spend.on.this
 for (i in 1:nrow(b1)){
   b1$night[i] <- b1$have[i] + b1$will[i]
 }
-
+#### function to convert to full states names
 abbr2state <- function(abbr){
   ab    <- tolower(c("AL",
                      "AK", "AZ", "KS", "UT", "CO", "CT",
@@ -50,7 +51,7 @@ abbr2state <- function(abbr){
   st[match(tolower(abbr), ab)]
 }
 
-
+#####creat a new column with full states names
 for (j in 1:nrow(b1)){
   if (is.na(b1$state[j])){
     b1$statenew[j] <- "NULL"
@@ -65,12 +66,12 @@ for (i in 1:nrow(b1)){
 }
 
 b1$main_purpose <- b1$Of.these.purposes.you.just.mentioned..replied..yes..to...what.is.the.MAIN.purpose.for.you.being.IN.MONTANA.
-
+### create a dataframe for chi-square test and anova
 output <- b1 %>% 
   select(statenew, main_purpose,fir_mon,night) %>% 
   collect
 head(output)
-
+#### function to divide states into five regions 
 state2region <- function(abbr){
   ab    <- tolower(c("Montana","Wyoming","Colorado","Utah","Idaho","Nevada",
                      "California","Washington","Oregon","Alaska","Hawaii",
@@ -94,10 +95,12 @@ state2region <- function(abbr){
              "Northeast")
   st[match(tolower(abbr), ab)]
 }
+### making sure data type is right
 output$region <- state2region(output$statenew)
 output$region <- as.character(output$region)
 output$main_purpose <- as.character(output$main_purpose)
 output$statenew <- as.character(output$statenew)
+#### data frame for chi-square test and clean data
 chi_purpose <- output%>%
   select(region,main_purpose)%>%
   filter(main_purpose != "Shopping" & 
@@ -121,12 +124,15 @@ ano_nights <- output%>%
 ano <- table(ano_nights$region,ano_nights$night)
 data.frame(ano)
 hist(ano_nights$night)
+#### fit the anova model
 m1 <- aov(night~region,data=ano_nights)
 summary(m1)
+#### check the model 
 plot(predict(m1),resid(m1),pch=16)
 hist(resid(m1),col="gray")
 qqnorm(resid(m1),pch=16)
 par(mar=c(5,7,4,1)+.1)
+##### get the confidence interval 
 t1 = TukeyHSD(m1,"region")
 t1
 plot(t1,las = 1)
